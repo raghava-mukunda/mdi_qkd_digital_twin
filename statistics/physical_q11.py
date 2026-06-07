@@ -131,7 +131,7 @@ class PhysicalQ11:
 
         polarization_offset_deg: float,
 
-        trials: int = 5000
+        trials: int = 2000
 
     ):
 
@@ -214,35 +214,28 @@ class PhysicalQ11:
             self.params.detector_efficiency
         )
 
-        q11 = (
+        #
+# Higher dimensions require
+# longer temporal stability.
+#
+# Distance hurts them more.
+#
 
-            p1_a
+        dimension_penalty = np.exp(
 
-            *
+                -(dimension - 2)
 
-            p1_b
+                *
 
-            *
+                loss_db
 
-            eta_a
+                /
 
-            *
+                500.0
 
-            eta_b
+            )
 
-            *
-
-            detector_eff
-
-            *
-
-            detector_eff
-
-            *
-
-            p_bsm
-
-        )
+        q11 = (p1_a*p1_b*eta_a*eta_b*detector_eff*detector_eff*p_bsm*dimension_penalty)
 
         return PhysicalQ11Metrics(
 

@@ -71,9 +71,7 @@ class BeamSplitter:
         delay_ps: float
     ):
 
-        sigma = (
-            self.coherence_time_ps
-        )
+        sigma = 250.0
 
         return float(
 
@@ -84,7 +82,9 @@ class BeamSplitter:
                 /
 
                 (2*sigma**2)
+
             )
+
         )
 
     def phase_visibility(
@@ -112,7 +112,10 @@ class BeamSplitter:
             np.cos(theta)**2
         )
 
-    def coherence_visibility(self,dimension: int):
+    def coherence_visibility(
+        self,
+        dimension: int
+    ):
 
         frame_duration_ps = (
 
@@ -121,21 +124,30 @@ class BeamSplitter:
             *
 
             self.bin_width_ps
+
         )
+
+        #
+        # Effective coherence window
+        # representing accumulated phase
+        # instability across long frames.
+        #
+
+        effective_coherence_ps = 30000.0
 
         return float(
 
             np.exp(
 
-                -(
-                    frame_duration_ps
-                    /
-                    self.coherence_time_ps
-                )**2
+                -frame_duration_ps
+
+                /
+
+                effective_coherence_ps
 
             )
 
-    )
+        )
 
     def interfere(
 

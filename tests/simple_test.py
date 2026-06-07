@@ -1,8 +1,5 @@
-from config.system_params import SystemParameters
+from interference.beam_splitter import BeamSplitter
 
-p = SystemParameters()
+bs = BeamSplitter()
 
-print()
-print("Linewidth (Hz):", p.laser_linewidth_hz)
-print("Coherence time (ps):", p.coherence_time_ps)
-print("Bin spacing (ps):", p.time_bin_spacing_ps)
+print(bs.coherence_time_ps)

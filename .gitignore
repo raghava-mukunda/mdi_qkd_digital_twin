@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+
+*.png
+*.jpg
+*.jpeg
+
+*.npz
+*.csv
+
+*.pkl
+
+.vscode/
+.idea/
+
+.env

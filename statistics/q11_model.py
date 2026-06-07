@@ -1,14 +1,19 @@
 """
 q11_model.py
 
-Dimension dependent gain model
+Legacy compatibility wrapper.
+
+Uses PhysicalQ11 internally.
 
 Author:
 MDI-QKD Digital Twin
 """
 
 from dataclasses import dataclass
-import numpy as np
+
+from statistics.physical_q11 import (
+    PhysicalQ11
+)
 
 
 @dataclass(slots=True)
@@ -21,6 +26,10 @@ class Q11Metrics:
 
 class Q11Model:
 
+    def __init__(self):
+
+        self.model = PhysicalQ11()
+
     def calculate(
 
         self,
@@ -29,48 +38,19 @@ class Q11Model:
 
     ):
 
-        #
-        # Frame preparation penalty
-        #
-        # More bins
-        # harder stabilization
-        #
+        result = self.model.estimate(
 
-        stabilization = np.exp(
+            dimension=dimension,
 
-            -dimension / 12
+            loss_db=5,
 
-        )
+            phase_offset_rad=0.1,
 
-        #
-        # HD information advantage
-        #
+            timing_offset_ps=20,
 
-        advantage = (
+            polarization_offset_deg=2,
 
-            2
-
-            *
-
-            (dimension - 1)
-
-            /
-
-            dimension
-
-        )
-
-        gain = (
-
-            1e-6
-
-            *
-
-            stabilization
-
-            *
-
-            advantage
+            trials=3000
 
         )
 
@@ -78,7 +58,6 @@ class Q11Model:
 
             dimension=dimension,
 
-            gain=float(
-                gain
-            )
+            gain=result.q11
+
         )

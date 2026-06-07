@@ -1,120 +1,32 @@
 """
 real_scheduler.py
 
-Uses actual digital twin modules
-to estimate achievable SKR.
-
-Author:
-MDI-QKD Digital Twin
+Physical HD-MDI-QKD Scheduler
 """
 
-from adaptive.channel_state import (
-    ChannelState
-)
+from adaptive.channel_state import ChannelState
 
-from bsm.quantum_state import (
-    QuantumStateFactory
-)
+from statistics.physical_q11 import PhysicalQ11
 
-from bsm.charlie_receiver import (
-    CharlieReceiver
-)
+from statistics.x_basis_error import XBasisErrorModel
 
-from statistics.x_basis_error import (
-    XBasisErrorModel
-)
+from skr.secret_key_rate import SecretKeyRate
 
-from skr.secret_key_rate import (
-    SecretKeyRate
-)
+from security.decoy_estimator import DecoyEstimator
 
+import numpy as np
 
 class RealScheduler:
 
     def __init__(self):
 
-        self.charlie = CharlieReceiver()
+        self.q11_model = PhysicalQ11()
 
         self.xerr = XBasisErrorModel()
 
         self.skr = SecretKeyRate()
 
-    def estimate_q11(
-
-        self,
-
-        dimension,
-
-        state,
-
-        trials=500
-
-    ):
-
-        alice = (
-            QuantumStateFactory.create(
-                dimension,
-                "X",
-                0
-            )
-        )
-
-        bob = (
-            QuantumStateFactory.create(
-                dimension,
-                "X",
-                0
-            )
-        )
-
-        success = 0
-
-        for _ in range(trials):
-
-            result = (
-
-                self.charlie.process_trial(
-
-                    alice,
-
-                    bob,
-
-                    timing_offset_ps=
-                    state.timing_jitter_ps,
-
-                    phase_offset_rad=
-                    state.phase_noise_rad,
-
-                    polarization_offset_deg=
-                    state.polarization_drift_deg
-                )
-            )
-
-            if result.psi_minus:
-
-                success += 1
-
-        transmission = (
-
-            10
-
-            **
-
-            (-state.loss_db/10)
-        )
-
-        return (
-
-            success
-
-            /
-
-            trials
-
-            *
-
-            transmission
-        )
+        self.decoy = DecoyEstimator()
 
     def evaluate_dimension(
 
@@ -122,53 +34,72 @@ class RealScheduler:
 
         dimension,
 
-        state
+        state,
+
+        trials=1000
 
     ):
 
+        q_mu = self.q11_model.estimate(
+
+            dimension,
+
+            state.loss_db,
+
+            state.phase_noise_rad,
+
+            state.timing_jitter_ps,
+
+            state.polarization_drift_deg,
+
+            trials=1000
+
+        )
+
+        q_nu = 0.25 * q_mu.q11
+
+        q_omega = 0.01 * q_mu.q11
+
+        decoy = self.decoy.estimate(
+
+            mu=0.4,
+
+            nu=0.1,
+
+            omega=0,
+
+            q_mu=q_mu.q11,
+
+            q_nu=q_nu,
+
+            q_omega=q_omega
+
+        )
+
         self.xerr.params.phase_noise_std_rad = (
+
             state.phase_noise_rad
-        )
 
-        visibility = (
-
-            1
-
-            -
-
-            state.polarization_drift_deg
-            /
-            100
-        )
-
-        visibility = max(
-            visibility,
-            0.5
         )
 
         x = self.xerr.calculate(
 
             dimension,
 
-            visibility
-        )
+            visibility=0.95
 
-        q11 = self.estimate_q11(
-
-            dimension,
-
-            state
         )
 
         result = self.skr.calculate(
 
             dimension=dimension,
 
-            q11_z=q11,
+            q11_z=decoy.q11,
 
             ex11=x.error_rate,
 
-            leak_ec=1e-4*q11
+            leak_ec=1e-4 * decoy.q11
+
         )
 
         return result.secret_key_rate
@@ -183,26 +114,38 @@ class RealScheduler:
 
         results = {}
 
-        for d in [
+        effective_bits = {}
 
-            2,
-            4,
-            8,
-            16
-
-        ]:
+        for d in [2,4,8,16]:
 
             results[d] = (
 
                 self.evaluate_dimension(
+
                     d,
+
                     state
+
                 )
+
+            )
+
+            effective_bits[d] = (
+
+                results[d]
+
+                *
+
+                np.log2(d)
+
             )
 
         best = max(
-            results,
+
+            effective_bits,
+
             key=results.get
+
         )
 
         return best, results

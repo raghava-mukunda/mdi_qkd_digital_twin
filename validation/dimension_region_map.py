@@ -1,7 +1,7 @@
 """
 dimension_region_map.py
 
-Optimal Dimension Regions
+Smoothed Optimal Dimension Map
 
 Author:
 MDI-QKD Digital Twin
@@ -17,8 +17,6 @@ from adaptive.real_scheduler import (
     RealScheduler
 )
 
-scheduler = RealScheduler()
-
 loss_values = np.linspace(
     0,
     20,
@@ -31,11 +29,12 @@ phase_values = np.linspace(
     15
 )
 
-print()
-print("="*100)
-print("OPTIMAL DIMENSION REGION MAP")
-print("="*100)
+N_AVERAGES = 10
 
+print()
+print("=" * 100)
+print("OPTIMAL DIMENSION REGION MAP")
+print("=" * 100)
 print()
 
 header = "Loss\\Phase".ljust(12)
@@ -46,11 +45,27 @@ for p in phase_values:
 
 print(header)
 
+total_points = (
+    len(loss_values)
+    *
+    len(phase_values)
+)
+
+counter = 0
+
 for loss in loss_values:
 
     row = f"{loss:.1f}".ljust(12)
 
     for phase in phase_values:
+
+        counter += 1
+
+        print(
+            f"\rProgress: "
+            f"{counter}/{total_points}",
+            end=""
+        )
 
         state = ChannelState(
 
@@ -61,15 +76,55 @@ for loss in loss_values:
             timing_jitter_ps=20,
 
             polarization_drift_deg=2
+
         )
 
-        best_d, _ = (
+        avg_scores = {
 
-            scheduler.choose_dimension(
-                state
+            2: 0.0,
+            4: 0.0,
+            8: 0.0,
+            16: 0.0
+
+        }
+
+        for _ in range(N_AVERAGES):
+
+            scheduler = RealScheduler()
+
+            _, scores = (
+
+                scheduler.choose_dimension(
+                    state
+                )
+
             )
+
+            for d in avg_scores:
+
+                avg_scores[d] += (
+                    scores[d]
+                )
+
+        for d in avg_scores:
+
+            avg_scores[d] /= (
+                N_AVERAGES
+            )
+
+        best_d = max(
+
+            avg_scores,
+
+            key=avg_scores.get
+
         )
 
         row += str(best_d).rjust(5)
 
+    print()
     print(row)
+
+print()
+print()
+print("Finished.")

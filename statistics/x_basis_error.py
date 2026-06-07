@@ -62,7 +62,7 @@ class XBasisErrorModel:
 
             *
 
-            dimension
+            (dimension**0.75)
         )
 
         phase_visibility = (

@@ -78,15 +78,15 @@ class SystemParameters:
 
     pm_bandwidth_hz: float = 20e9
 
-    phase_noise_std_rad: float = 0.02
+    phase_noise_std_rad: float = 0.10
 
     # =====================================================
     # VOA
     # =====================================================
 
-    signal_mu: float = 0.40
+    signal_mu: float = 0.20
 
-    decoy_mu: float = 0.10
+    decoy_mu: float = 0.12
 
     vacuum_mu: float = 1e-8
 
