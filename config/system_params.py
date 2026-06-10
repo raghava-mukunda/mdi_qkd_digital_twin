@@ -108,7 +108,7 @@ class SystemParameters:
 
     polarization_drift_deg: float = 1.0
 
-    phase_drift_std_rad: float = 0.05
+    phase_drift_std_rad: float = 0.10
 
     # =====================================================
     # HOM

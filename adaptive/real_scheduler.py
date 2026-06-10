@@ -16,9 +16,15 @@ from security.decoy_estimator import DecoyEstimator
 
 import numpy as np
 
+
 class RealScheduler:
 
-    def __init__(self):
+    def __init__(
+        self,
+        fast_mode=False
+    ):
+
+        self.fast_mode = fast_mode
 
         self.q11_model = PhysicalQ11()
 
@@ -28,37 +34,134 @@ class RealScheduler:
 
         self.decoy = DecoyEstimator()
 
-    def evaluate_dimension(
-
+    def fast_q11(
         self,
-
         dimension,
-
-        state,
-
-        trials=1000
-
+        state
     ):
 
-        q_mu = self.q11_model.estimate(
+        P_BSM = {
 
-            dimension,
+            2: 0.4782,
+            4: 0.4486,
+            8: 0.3946,
+            16: 0.3068,
 
-            state.loss_db,
+        }
 
-            state.phase_noise_rad,
+        mu = 0.20
 
-            state.timing_jitter_ps,
+        p1 = mu * np.exp(-mu)
 
-            state.polarization_drift_deg,
+        eta = 10 ** (
 
-            trials=1000
+            -state.loss_db / 20
 
         )
 
-        q_nu = 0.25 * q_mu.q11
+        phase_vis = np.cos(
 
-        q_omega = 0.01 * q_mu.q11
+            state.phase_noise_rad / 2
+
+        ) ** 2
+
+        timing_vis = np.exp(
+
+            -(state.timing_jitter_ps ** 2)
+
+            /
+
+            (2 * 250 ** 2)
+
+        )
+
+        pol_vis = np.cos(
+
+            np.deg2rad(
+                state.polarization_drift_deg
+            )
+
+        ) ** 2
+
+        visibility = (
+
+            phase_vis
+            *
+            timing_vis
+            *
+            pol_vis
+
+        )
+
+        detector_eff = 0.95
+
+        q11 = (
+
+            p1
+            *
+            p1
+            *
+            eta
+            *
+            eta
+            *
+            detector_eff
+            *
+            detector_eff
+            *
+            P_BSM[dimension]
+            *
+            visibility
+
+        )
+
+        return q11
+
+    def evaluate_dimension(
+        self,
+        dimension,
+        state,
+        trials=100
+    ):
+
+        #
+        # Q11 estimation
+        #
+
+        if self.fast_mode:
+
+            q_mu_value = self.fast_q11(
+                dimension,
+                state
+            )
+
+        else:
+
+            q_mu_result = self.q11_model.estimate(
+
+                dimension,
+
+                state.loss_db,
+
+                state.phase_noise_rad,
+
+                state.timing_jitter_ps,
+
+                state.polarization_drift_deg,
+
+                trials=trials
+
+            )
+
+            q_mu_value = q_mu_result.q11
+
+        #
+        # Decoy gains
+        #
+
+        q_nu = 0.25 * q_mu_value
+
+        q_omega = 0.01 * q_mu_value
 
         decoy = self.decoy.estimate(
 
@@ -68,7 +171,7 @@ class RealScheduler:
 
             omega=0,
 
-            q_mu=q_mu.q11,
+            q_mu=q_mu_value,
 
             q_nu=q_nu,
 
@@ -76,19 +179,42 @@ class RealScheduler:
 
         )
 
-        self.xerr.params.phase_noise_std_rad = (
+        #
+        # X-basis error
+        #
 
-            state.phase_noise_rad
+        if state.residual_phase_rad is not None:
 
-        )
+            x = self.xerr.calculate(
 
-        x = self.xerr.calculate(
+                dimension,
 
-            dimension,
+                visibility=0.95,
 
-            visibility=0.95
+                residual_phase=
+                state.residual_phase_rad
 
-        )
+            )
+
+        else:
+
+            self.xerr.params.phase_noise_std_rad = (
+
+                state.phase_noise_rad
+
+            )
+
+            x = self.xerr.calculate(
+
+                dimension,
+
+                visibility=0.95
+
+            )
+
+        #
+        # Secret key rate
+        #
 
         result = self.skr.calculate(
 
@@ -105,28 +231,21 @@ class RealScheduler:
         return result.secret_key_rate
 
     def choose_dimension(
-
         self,
-
         state
-
     ):
 
         results = {}
 
         effective_bits = {}
 
-        for d in [2,4,8,16]:
+        for d in [2, 4, 8, 16]:
 
-            results[d] = (
+            results[d] = self.evaluate_dimension(
 
-                self.evaluate_dimension(
+                d,
 
-                    d,
-
-                    state
-
-                )
+                state
 
             )
 
@@ -144,7 +263,7 @@ class RealScheduler:
 
             effective_bits,
 
-            key=results.get
+            key=effective_bits.get
 
         )
 

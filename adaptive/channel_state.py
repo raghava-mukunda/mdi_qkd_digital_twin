@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import Optional
+
 
 @dataclass(slots=True)
 class ChannelState:
@@ -10,3 +12,5 @@ class ChannelState:
     timing_jitter_ps: float
 
     polarization_drift_deg: float
+
+    residual_phase_rad: Optional[float] = None

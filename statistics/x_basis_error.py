@@ -44,37 +44,55 @@ class XBasisErrorModel:
 
         dimension: int,
 
-        visibility: float
+        visibility: float,
+
+        residual_phase: float | None = None
 
     ):
 
         #
-        # Stronger accumulation
-        #
-        # Coherent phase errors
-        # grow approximately
-        # with total frame span.
+        # Kalman residual phase:
+        # deterministic offset
         #
 
-        sigma_phi = (
+        if residual_phase is not None:
 
-            self.params.phase_noise_std_rad
+            phase_visibility = (
 
-            *
+                visibility
 
-            (dimension**0.75)
-        )
+                *
 
-        phase_visibility = (
-
-            visibility
-
-            *
-
-            np.exp(
-                -(sigma_phi**2)/2
+                np.cos(
+                    residual_phase / 2
+                )**2
             )
-        )
+
+        #
+        # Original Gaussian model
+        #
+
+        else:
+
+            sigma_phi = (
+
+                self.params.phase_noise_std_rad
+
+                *
+
+                (dimension**0.75)
+            )
+
+            phase_visibility = (
+
+                visibility
+
+                *
+
+                np.exp(
+                    -(sigma_phi**2)/2
+                )
+            )
 
         ex = (
 
